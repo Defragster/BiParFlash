@@ -1,4 +1,4 @@
-#include <ParallelFlash.h>
+#include <BiParFlash.h>
 #include <FastCRC.h>
 
 FastCRC32 CRC32;
@@ -8,7 +8,12 @@ const char* filename = "rain.aac";
 
 void setup() {
   // put your setup code here, to run once:
-  delay(1000);
+  Serial.begin(115200);
+  while (!Serial && millis() < 4000) ; // wait for serial port open
+  Serial.println("\n Starting ... ");
+  pinMode(LED_BUILTIN, OUTPUT); //LED
+  pinMode(2, OUTPUT);
+  pinMode(5, INPUT);
 
   // Start ParallelFlash
   if (!ParallelFlash.begin()) {
