@@ -32,11 +32,8 @@
 #include <arm_math.h>
 
 
-// const int flash_sck   =  15; //PTC0 FlashPin 6
-// const int flash_cs1   =  22; //PTC1 Flash1 Pin 1
-// const int flash_cs2   =  23; //PTC2 Flash2 Pin 1
-
 // Assemble "Parflash 8" board w/pins 16 and 17 cut, and with wires move those to 23 and 22:
+
 #ifdef BEFORE_8	// Parallel Flash standard pins - HALF of PORT_D
 /*
 const int flash_sck   =  20; //PTD5 FlashPin 6
@@ -89,6 +86,8 @@ const int flash_sio0_2  =   flash_sio4; // Second Par Flash :: flash_sio4 == PTD
 #define MASK_ALL		( MASK_CS | MASK_SCK )
 
 // BUGBUG S==8 :: C8???() are renamed to forced attention to all uses
+#define CSASSERT_CS1()  	{ GPIO_C->PCOR = MASK_CS2;  }
+#define CSASSERT_CS2()  	{ GPIO_C->PCOR = MASK_CS2;  }
 #define C8ASSERT()  	{ GPIO_C->PCOR = MASK_CS;  }
 #define C8RELEASE() 	{ GPIO_C->PDOR = MASK_CS | MASK_SCK; }
 #define C8RELEASESPI()	{ GPIO_C->PDOR = MASK_CS; }
@@ -136,6 +135,11 @@ uint8_t BiParFlashChip::busy = 0;
 //#define FLAG_DIE_MASK		0xC0	// top 2 bits count during multi-die erase
 
 
+// BUGBUG :: some writeByte() calls are COMMANDS to CHIPS
+// BUGBUG_CMD_WRITE_READ
+// ??? void BiParFlashChip::writeByteCMD(const uint8_t val, CS##_MASK) {
+// OR like -- writeBytes( [0xff,0xff], 2) ????
+// OR like -- write16(0xFFFF) ????
 void BiParFlashChip::writeByte(const uint8_t val) {
   uint32_t clk0 = GPIO_C->PDOR & ~MASK_ALL;
   uint32_t clk1 = clk0 | MASK_SCK; //CS=0; CLK=1
@@ -190,6 +194,7 @@ void BiParFlashChip::write32(const uint32_t val) {
 	writeBytes((uint8_t*) &buf, 4);
 }
 
+// BUGBUG_CMD_WRITE_READ  - commands read in parallel need parsed from WORD
 uint8_t BiParFlashChip::readByte(void) {
   uint32_t val;
 
@@ -483,11 +488,15 @@ bool BiParFlashChip::ready()
 void BiParFlashChip::enterQPI()
 {
 	if (busy) wait();
-	// BUGBUG_DOUBLE_THIS
-	CSASSERT();
-	shiftOut( flash_sio0 ,  flash_sck , MSBFIRST, 0x38); //Enter QPI Mode
+	// BUGBUG_DOUBLE_THIS :: both chips must go into QPI
+	CSRELEASESPI();	// Make sure both FLASH CS 1 & 2 are Released
+	CSASSERT_CS1();
+	shiftOut( flash_sio0_1 ,  flash_sck , MSBFIRST, 0x38); //Enter QPI Mode FLASH 1
 	CSRELEASESPI();
-	GPIO_D->PDDR &= ~0x0f;	// BUGBUG - SET PDDR ??? :: IS THIS WHERE control pins on PORT_C are set???
+	CSASSERT_CS2();
+	shiftOut( flash_sio0_2 ,  flash_sck , MSBFIRST, 0x38); //Enter QPI Mode FLASH 2
+	CSRELEASESPI();
+	GPIO_D->PDDR &= ~0x0f;	// BUGBUG - SET PDDR ??? for 8 bits after 4 bit testing
 
 	/* BUGBUG - IS THIS COMPLETE??
 	writeByte(0xC0);
@@ -499,7 +508,12 @@ void BiParFlashChip::enterQPI()
 void BiParFlashChip::exitQPI()
 {
 	if (busy) wait();
-	// BUGBUG_DOUBLE_THIS
+	// BUGBUG_DOUBLE_THIS - exit both FLASH
+	// BUGBUG :: some writeByte() calls are COMMANDS to CHIPS
+	// BUGBUG_CMD_WRITE_READ
+	// ??? void BiParFlashChip::writeByteCMD(const uint8_t val, CS##_MASK)
+	// OR -- writeBytes( [0xff,0xff], 2) ????
+	// OR like -- write16(0xFFFF) ????
 	writeByte(0xff); // Exit QPI Mode
 	CSRELEASE();
 	GPIO_C->PCOR = MASK_SCK;
@@ -605,6 +619,8 @@ bool BiParFlashChip::begin()
 	if (size > 16777216) {
 		// more than 16 Mbyte requires 32 bit addresses
 		ff |= FLAG_32BIT_ADDR;
+		// BUGBUG_CMD_WRITE_READ OR like -- write16(0x0066) ????
+		// BUGBUG_CMD_WRITE_READ OR like -- write16(0xBB77) ????
 		// micron & winbond & macronix use command
 		writeByte(0x06); // write enable
 		CSRELEASE();
@@ -617,30 +633,37 @@ bool BiParFlashChip::begin()
 	if ((id[0]=ID0_WINBOND) && (id[1]==0x60) && (id[2]>=18)) {
 
 		uint8_t r3;
+		// BUGBUG_CMD_WRITE_READ
 		writeByte(0x15);
-		r3 = readByte();
+		r3 = readByte();	// BUGBUG_CMD_WRITE_READ
 		CSRELEASE();
 
 		//Serial.print("Status Register 3:0x");
 		//Serial.println(r3, HEX);
 
 		//Remove block locks (Winbond)
+		// BUGBUG_CMD_WRITE_READ
 		writeByte(0x06); // write enable
 		CSRELEASE();
 
+		// BUGBUG_CMD_WRITE_READ
 		writeByte(0x98); // global block unlock
 		CSRELEASE();
 
 		if (r3 != 0x00) {
 
+			// BUGBUG_CMD_WRITE_READ
 			writeByte(0x06); // write enable
 			CSRELEASE();
 
+			// BUGBUG_CMD_WRITE_READ
 			writeByte(0x11); //write statusregister 3
+			// BUGBUG_CMD_WRITE_READ
 			writeByte(0x00);
 			CSRELEASE();
 		}
 
+		// BUGBUG_CMD_WRITE_READ
 		writeByte(0x06); // write enable
 		CSRELEASE();
 
