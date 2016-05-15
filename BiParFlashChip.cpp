@@ -60,6 +60,7 @@ const int flash_sio3  =   8; //PTD3 FlashPin 7
 #endif
 
 // CONTROL signals on PORT_C
+// BUGBUG S==8 :: fla8h renamed to forced attention to all uses
 const int fla8h_sck   =  23; //PTC2 FlashPin 6      // wire FROM teensy PIN 17
 const int flash_cs1   =  15; //PTC0 Flash1 Pin 1
 const int flash_cs2   =  22; //PTC1 Flash2 Pin 1    // wire FROM teensy PIN 16
@@ -68,16 +69,16 @@ const int flash_cs2   =  22; //PTC1 Flash2 Pin 1    // wire FROM teensy PIN 16
 
 //Don't edit: BiPar - DATA SIGNALS on PORT_D
 // BUGBUG S==8 :: fla8h renamed to forced attention to all uses
-const int flash_sio0_1  =   2; // flash_sio0 == PTD0 Flash_1 Pin 5
-const int flash_sio0_2  =   6; // flash_sio4 == PTD0 Flash_2 Pin 5
-const int fla8h_sio0  =   2; //PTD0 Flash_1 Pin 5
+const int fla8h_sio0  =   2; //PTD0 Flash_1 Pin 5 // First Par Flash Start
 const int fla8h_sio1  =  14; //PTD1 Flash_1 Pin 2
 const int fla8h_sio2  =   7; //PTD2 Flash_1 Pin 3
 const int fla8h_sio3  =   8; //PTD3 Flash_1 Pin 7
-const int flash_sio4  =   6; //PTD4 Flash_2 Pin 5
+const int flash_sio4  =   6; //PTD4 Flash_2 Pin 5 // Second Par Flash Start
 const int flash_sio5  =  20; //PTD5 Flash_2 Pin 2
 const int flash_sio6  =  21; //PTD6 Flash_2 Pin 3
 const int flash_sio7  =   5; //PTD7 Flash_2 Pin 7
+const int flash_sio0_1  =   flash_sio0; // First Par Flash :: flash_sio0 == PTD0 Flash_1 Pin 5
+const int flash_sio0_2  =   flash_sio4; // Second Par Flash :: flash_sio4 == PTD4 Flash_2 Pin 5
 
 // BUGBUG S==8 :: MA8K are renamed to forced attention to all uses
 #define MA8K_CS1 		( pin_to_bitmask(flash_cs1) ) //PTC0
@@ -87,7 +88,7 @@ const int flash_sio7  =   5; //PTD7 Flash_2 Pin 7
 #define MA8K_SIO0		( 1 )	//PTD0: SIO0..SIO7 not changeable!
 #define MASK_ALL		( MASK_CS | MASK_SCK )
 
-// BUGBUG S==8 :: C8??? are renamed to forced attention to all uses
+// BUGBUG S==8 :: C8???() are renamed to forced attention to all uses
 #define C8ASSERT()  	{ GPIO_C->PCOR = MASK_CS;  }
 #define C8RELEASE() 	{ GPIO_C->PDOR = MASK_CS | MASK_SCK; }
 #define C8RELEASESPI()	{ GPIO_C->PDOR = MASK_CS; }
@@ -322,21 +323,21 @@ void BiParFlashChip::wait(void)
 
 void BiParFlashChip::read(uint32_t addr, void *buf, uint32_t len)
 {
-	uint8_t *p = (uint8_t *)buf;
-	uint8_t b, f, status;
+	uint8_t *pp = (uint8_t *)buf;
+	uint8_t bb, ff, status;
 
-	f = flags;
-	b = busy;
-	if (b) {
+	ff = flags;
+	bb = busy;
+	if (bb) {
 		// read status register ... chip may no longer be busy
 		writeByte(0x05); //Read Status Byte #1
 		status = readByte();
-		if (!(status & 1)) b = 0;
+		if (!(status & 1)) bb = 0;
 		CSRELEASE();
-		if (b == 0) {
+		if (bb == 0) {
 			// chip is no longer busy :-)
 			busy = 0;
-		} else if (b < 3) {
+		} else if (bb < 3) {
 			writeByte(0x06); // write enable
 			CSRELEASE();
 
@@ -352,12 +353,12 @@ void BiParFlashChip::read(uint32_t addr, void *buf, uint32_t len)
 		} else {
 			// chip is busy with an operation that can not suspend
 			wait();			// should we wait without ending
-			b = 0;			// the transaction??
+			bb = 0;			// the transaction??
 		}
 	}
 
 
-	if (f & FLAG_32BIT_ADDR) {
+	if (ff & FLAG_32BIT_ADDR) {
 		writeByte(0x0b);
 		write32(addr);
 		readByte();//dummy
@@ -374,10 +375,10 @@ void BiParFlashChip::read(uint32_t addr, void *buf, uint32_t len)
 		*/
 	}
 
-	readBytes(p, len);
+	readBytes(pp, len);
 	CSRELEASE();
 
-	if (b) {
+	if (bb) {
 		writeByte(0x06); // write enable
 		CSRELEASE();
 		writeByte(0x7A);// Suspend command
@@ -387,7 +388,7 @@ void BiParFlashChip::read(uint32_t addr, void *buf, uint32_t len)
 
 void BiParFlashChip::write(uint32_t addr, const void *buf, uint32_t len)
 {
-	const uint8_t *p = (const uint8_t *)buf;
+	const uint8_t *pp = (const uint8_t *)buf;
 	uint32_t max, pagelen;
 
 	 //Serial.printf("WR: addr %08X, len %d\n", addr, len);
@@ -411,7 +412,7 @@ void BiParFlashChip::write(uint32_t addr, const void *buf, uint32_t len)
 		addr += pagelen;
 		len -= pagelen;
 		do {
-			writeByte(*p++);
+			writeByte(*pp++);
 		} while (--pagelen > 0);
 		CSRELEASE();
 		busy = 1;
@@ -508,7 +509,7 @@ void BiParFlashChip::exitQPI()
 bool BiParFlashChip::begin()
 {	// BUGBUG_DOUBLE_THIS as needed
 	uint8_t id[3];
-	uint8_t f;
+	uint8_t ff;
 	uint32_t size;
 
 	pinMode(flash_cs1, OUTPUT);
@@ -560,16 +561,16 @@ bool BiParFlashChip::begin()
 #ifdef DEBUG
 	CSASSERT();
 	shiftOut( flash_sio0 ,  flash_sck , MSBFIRST, 0x05); //Read Status Register 1
-	uint8_t r = shiftIn( flash_sio1 ,  flash_sck , MSBFIRST);
+	uint8_t rr = shiftIn( flash_sio1 ,  flash_sck , MSBFIRST);
 	CSRELEASESPI();
 	Serial.print("Status Register 1:0x");
-	Serial.println(r, HEX);
+	Serial.println(rr, HEX);
 
 	CSASSERT();
 	shiftOut( flash_sio0 ,  flash_sck , MSBFIRST, 0x15); //Read Status Register 3
-	r = shiftIn( flash_sio1 ,  flash_sck , MSBFIRST);
+	rr = shiftIn( flash_sio1 ,  flash_sck , MSBFIRST);
 	Serial.print("Status Register 3:0x");
-	Serial.println(r, HEX);
+	Serial.println(rr, HEX);
 	CSRELEASESPI();
 
 #endif
@@ -586,23 +587,24 @@ bool BiParFlashChip::begin()
 #ifdef DEBUG
 	CSASSERT();
 	shiftOut( flash_sio0 ,  flash_sck , MSBFIRST, 0x35); //Read Status Register 2
-	r = shiftIn( flash_sio1 ,  flash_sck , MSBFIRST);
+	rr = shiftIn( flash_sio1 ,  flash_sck , MSBFIRST);
 	CSRELEASESPI();
 	Serial.print("Status Register 2:0x");
-	Serial.println(r, HEX);
+	Serial.println(rr, HEX);
 #endif
 
 	enterQPI();
 
 	readID(id);
-	f = 0;
+	ff = 0;
 	size = capacity(id);
 
 
-
+	// BUGBUG :: BiPar with two 16MB is 32MB data - This won't APPLY ??
+	// Each chip still 16MB addressed - but there will be 32M_nibbles
 	if (size > 16777216) {
 		// more than 16 Mbyte requires 32 bit addresses
-		f |= FLAG_32BIT_ADDR;
+		ff |= FLAG_32BIT_ADDR;
 		// micron & winbond & macronix use command
 		writeByte(0x06); // write enable
 		CSRELEASE();
@@ -644,7 +646,7 @@ bool BiParFlashChip::begin()
 
 	}
 
-	flags = f;
+	flags = ff;
 	return true;
 }
 
