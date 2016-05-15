@@ -38,6 +38,7 @@
 
 // Assemble "Parflash 8" board w/pins 16 and 17 cut, and with wires move those to 23 and 22:
 #ifdef BEFORE_8	// Parallel Flash standard pins - HALF of PORT_D
+/*
 const int flash_sck   =  20; //PTD5 FlashPin 6
 const int flash_cs    =   5; //PTD7 FlashPin 1
 
@@ -55,28 +56,30 @@ const int flash_sio3  =   8; //PTD3 FlashPin 7
 #define CSASSERT()  	{ GPIO_C->PCOR = MASK_CS; }
 #define CSRELEASE() 	{ GPIO_C->PDOR = MASK_CS | MASK_SCK; }
 #define CSRELEASESPI()	{ GPIO_C->PDOR = MASK_CS; }
+*/
 #endif
 
 // CONTROL signals on PORT_C
 const int fla8h_sck   =  23; //PTC2 FlashPin 6      // wire FROM teensy PIN 17
-const int fla8h_cs1   =  15; //PTC0 Flash1 Pin 1
-const int fla8h_cs2   =  22; //PTC1 Flash2 Pin 1    // wire FROM teensy PIN 16
+const int flash_cs1   =  15; //PTC0 Flash1 Pin 1
+const int flash_cs2   =  22; //PTC1 Flash2 Pin 1    // wire FROM teensy PIN 16
 
 
-// BUGBUG :: fla8h , MA8K, C8??? are renamed to forced attention to all uses
 
 //Don't edit: BiPar - DATA SIGNALS on PORT_D
-const int fla8h_sio0_1  =   2; //PTD0 Flash_1 Pin 5
-const int fla8h_sio0_2  =   6; //PTD0 Flash_2 Pin 5
+// BUGBUG S==8 :: fla8h renamed to forced attention to all uses
+const int flash_sio0_1  =   2; // flash_sio0 == PTD0 Flash_1 Pin 5
+const int flash_sio0_2  =   6; // flash_sio4 == PTD0 Flash_2 Pin 5
 const int fla8h_sio0  =   2; //PTD0 Flash_1 Pin 5
 const int fla8h_sio1  =  14; //PTD1 Flash_1 Pin 2
 const int fla8h_sio2  =   7; //PTD2 Flash_1 Pin 3
 const int fla8h_sio3  =   8; //PTD3 Flash_1 Pin 7
-const int fla8h_sio4  =   6; //PTD0 Flash_2 Pin 5
-const int fla8h_sio5  =  20; //PTD1 Flash_2 Pin 2
-const int fla8h_sio6  =  21; //PTD2 Flash_2 Pin 3
-const int fla8h_sio7  =   5; //PTD3 Flash_2 Pin 7
+const int flash_sio4  =   6; //PTD4 Flash_2 Pin 5
+const int flash_sio5  =  20; //PTD5 Flash_2 Pin 2
+const int flash_sio6  =  21; //PTD6 Flash_2 Pin 3
+const int flash_sio7  =   5; //PTD7 Flash_2 Pin 7
 
+// BUGBUG S==8 :: MA8K are renamed to forced attention to all uses
 #define MA8K_CS1 		( pin_to_bitmask(flash_cs1) ) //PTC0
 #define MA8K_CS2 		( pin_to_bitmask(flash_cs2) ) //PTC1
 #define MA8K_CS			( MASK_CS1 | MASK_CS2 )
@@ -84,6 +87,7 @@ const int fla8h_sio7  =   5; //PTD3 Flash_2 Pin 7
 #define MA8K_SIO0		( 1 )	//PTD0: SIO0..SIO7 not changeable!
 #define MASK_ALL		( MASK_CS | MASK_SCK )
 
+// BUGBUG S==8 :: C8??? are renamed to forced attention to all uses
 #define C8ASSERT()  	{ GPIO_C->PCOR = MASK_CS;  }
 #define C8RELEASE() 	{ GPIO_C->PDOR = MASK_CS | MASK_SCK; }
 #define C8RELEASESPI()	{ GPIO_C->PDOR = MASK_CS; }
@@ -130,8 +134,6 @@ uint8_t BiParFlashChip::busy = 0;
 #define FLAG_256K_BLOCKS	0x10	// has 256K erase blocks
 //#define FLAG_DIE_MASK		0xC0	// top 2 bits count during multi-die erase
 
-
-// BUGBUG - where is PDDR set for Control Bits?
 
 void BiParFlashChip::writeByte(const uint8_t val) {
   uint32_t clk0 = GPIO_C->PDOR & ~MASK_ALL;
@@ -509,14 +511,18 @@ bool BiParFlashChip::begin()
 	uint8_t f;
 	uint32_t size;
 
-	pinMode(flash_cs, OUTPUT);
-	digitalWriteFast(flash_cs, 1);
+	pinMode(flash_cs1, OUTPUT);
+	digitalWriteFast(flash_cs1, 1);
+	pinMode(flash_cs2, OUTPUT);
+	digitalWriteFast(flash_cs2, 1);
 	pinMode(flash_sck, OUTPUT);
 	digitalWriteFast(flash_sck, 1);
 
 
-	pinMode(flash_sio0, OUTPUT);
+	pinMode(flash_sio0_1, OUTPUT);
 	pinMode(flash_sio1, INPUT);
+	pinMode(flash_sio0_2, OUTPUT);
+	pinMode(flash_sio5, INPUT);
 
 	//Reset/Hold
 	pinMode(flash_sio3, INPUT_PULLUP);
@@ -532,11 +538,16 @@ bool BiParFlashChip::begin()
 	delayMicroseconds(100);
 
 	//Configure Pins for fast switching/reading
-	*portConfigRegister(flash_sio0) = 0x100;
+	*portConfigRegister(flash_sio0) = 0x100;	// First Par Flash
 	*portConfigRegister(flash_sio1) = 0x100;
 	*portConfigRegister(flash_sio2) = 0x100;
 	*portConfigRegister(flash_sio3) = 0x100;
-    *portConfigRegister(flash_cs)	= 0x100;
+	*portConfigRegister(flash_sio4) = 0x100;	// Second Par Flash
+	*portConfigRegister(flash_sio5) = 0x100;
+	*portConfigRegister(flash_sio6) = 0x100;
+	*portConfigRegister(flash_sio7) = 0x100;
+    *portConfigRegister(flash_cs1)	= 0x100;
+    *portConfigRegister(flash_cs2)	= 0x100;
 	*portConfigRegister(flash_sck)	= 0x100;
 
 	//PORTD_DFER = 0;
