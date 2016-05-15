@@ -7,17 +7,28 @@ Running in parallel for 8 bit access each command.
 Compatible to SerialFlash by Paul Stoffregen
 
 Winbond SPI Flash only.
+
 T_PIN= 2; //PTD0 Flash_1 Pin 5 // First Par Flash Start
+
 T_PIN=14; //PTD1 Flash_1 Pin 2
+
 T_PIN= 7; //PTD2 Flash_1 Pin 3
+
 T_PIN= 8; //PTD3 Flash_1 Pin 7
+
 T_PIN= 6; //PTD4 Flash_2 Pin 5 // Second Par Flash Start
+
 T_PIN=20; //PTD5 Flash_2 Pin 2
+
 T_PIN=21; //PTD6 Flash_2 Pin 3
+
 T_PIN= 5; //PTD7 Flash_2 Pin 7
  
+
 T_PIN=23; //PTC2 FlashPin 6      // wire FROM teensy PIN 17
+
 T_PIN=15; //PTC0 Flash1 Pin 1
+
 T_PIN=22; //PTC1 Flash2 Pin 1    // wire FROM teensy PIN 16
 
 
