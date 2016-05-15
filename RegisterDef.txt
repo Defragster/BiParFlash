@@ -1,0 +1,47 @@
+49.2 Memory map and register definition...................................1333
+"C:\Users\Tim\Desktop\2015_Arduino\Teensy\3.1\K20P64M72SF1RM.pdf"
+K20 Sub-Family Reference Manual, Rev. 1.1, Dec 2012
+
+struct sGPIO {
+  uint32_t PDOR; 	//Port Data Output Register
+  uint32_t PSOR; 	//Port Set Output Register
+  uint32_t PCOR; 	//Port Clear Output Register
+  uint32_t PTOR; 	//Port Toggle Output Register
+  uint32_t PDIR; 	//Port Data Input Register
+  uint32_t PDDR; 	//Port Data Direction Register
+};
+
+49.2.1 Port Data Output Register (GPIOx_PDOR) 
+This register configures the logic levels that are driven on each general-purpose output pins.
+Unimplemented pins for a particular device read as zero.
+0 Logic level 0 is driven on pin, provided pin is configured for general-purpose output. 
+1 Logic level 1 is driven on pin, provided pin is configured for general-purpose output
+
+49.2.2 Port Set Output Register (GPIOx_PSOR) 
+This register configures whether to set the fields of the PDOR.
+Writing to this register will update the contents of the corresponding bit in the PDOR as follows:
+0 Corresponding bit in PDORn does not change. 
+1 Corresponding bit in PDORn is set to logic 1.
+
+49.2.3 Port Clear Output Register (GPIOx_PCOR) 
+This register configures whether to clear the fields of PDOR.
+Writing to this register will update the contents of the corresponding bit in the Port Data Output Register (PDOR) as follows:
+0 Corresponding bit in PDORn does not change. 
+1 Corresponding bit in PDORn is cleared to logic 0.
+
+49.2.4 Port Toggle Output Register (GPIOx_PTOR)
+Writing to this register will update the contents of the corresponding bit in the PDOR as follows:
+0 Corresponding bit in PDORn does not change. 
+1 Corresponding bit in PDORn is set to the inverse of its existing logic state.
+
+49.2.5 Port Data Input Register (GPIOx_PDIR)
+Reads 0 at the unimplemented pins for a particular device. Pins that are not configured for a digital function read 0. If the Port Control and Interrupt module is disabled, then the corresponding bit in PDIR does not update.
+0 Pin logic level is logic 0, or is not configured for use by digital function. 
+1 Pin logic level is logic 1.
+
+49.2.6 Port Data Direction Register (GPIOx_PDDR) 
+The PDDR configures the individual port pins for input or output.
+Configures individual port pins for input or output.
+0 Pin is configured as general-purpose input, for the GPIO function. 
+1 Pin is configured as general-purpose output, for the GPIO function.
+

@@ -25,7 +25,7 @@
  * THE SOFTWARE.
  */
 
-#include "ParallelFlash.h"
+#include "BiParFlash.h"
 
 /* On-chip ParallelFlash. file allocation data structures:
 
