@@ -534,7 +534,7 @@ bool BiParFlashChip::begin()
 	digitalWriteFast(flash_sck, 1);
 
 
-	pinMode(flash_sio0_1, OUTPUT);
+	pinMode(flash_sio0_1, OUTPUT);	// BUGBUG - BOTH INPUT or OUTPUT ???
 	pinMode(flash_sio1, INPUT);
 	pinMode(flash_sio0_2, OUTPUT);
 	pinMode(flash_sio5, INPUT);
