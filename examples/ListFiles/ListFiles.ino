@@ -1,4 +1,5 @@
-#include <ParallelFlash.h>
+// TODO -- This example not converted or working yet  
+// #include <BiParFlash.h>
 
 void setup() {
 
