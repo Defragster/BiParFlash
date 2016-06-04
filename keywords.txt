@@ -1,5 +1,5 @@
-ParallelFlash.	KEYWORD1
-ParallelFlashFile	KEYWORD1
+BiParFlash.	KEYWORD1
+BiParFlashFile	KEYWORD1
 createWritable	KEYWORD2
 erase	KEYWORD2
 eraseAll	KEYWORD2

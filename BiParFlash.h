@@ -25,14 +25,14 @@
  * THE SOFTWARE.
  */
 
-#ifndef ParallelFlash_h_
-#define ParallelFlash_h_
+#ifndef BiParFlash_h_
+#define BiParFlash_h_
 
 #include <Arduino.h>
 
-class ParallelFlashFile;
+class BiParFlashFile;
 
-class ParallelFlashChip
+class BiParFlashChip
 {
 public:
 	static bool begin();
@@ -41,7 +41,7 @@ public:
 	static void sleep();
 	static void wakeup();
 	static void readID(uint8_t *buf);
-	static void readSerialNumber(uint8_t *buf);
+	//static void readSerialNumber(uint8_t *buf);
 	static void read(uint32_t addr, void *buf, uint32_t len);
 	static bool ready();
 	static void wait();
@@ -49,14 +49,14 @@ public:
 	static void eraseAll();
 	static void eraseBlock(uint32_t addr);
 
-	static ParallelFlashFile open(const char *filename);
+	static BiParFlashFile open(const char *filename);
 	static bool create(const char *filename, uint32_t length, uint32_t align = 0);
 	static bool createErasable(const char *filename, uint32_t length) {
 		return create(filename, length, blockSize());
 	}
 	static bool exists(const char *filename);
 	static bool remove(const char *filename);
-	static bool remove(ParallelFlashFile &file);
+	static bool remove(BiParFlashFile &file);
 	static void opendir() { dirindex = 0; }
 	static bool readdir(char *filename, uint32_t strsize, uint32_t &filesize);
 private:
@@ -68,21 +68,21 @@ private:
 				// 3 = busy for realz!!
 	static void enterQPI();
 	static void exitQPI();
-	static void writeByte(const uint8_t val);
-	static void writeBytes(const uint8_t * buf, const int len);
-	inline static void write16(const uint16_t val) __attribute__((always_inline));
-	inline static void write32(const uint32_t val) __attribute__((always_inline));
-	static uint8_t readByte(void);
+	static void writeByteBoth(const uint8_t val);
+	//static void writeBytes(const uint8_t * buf, const int len);
+	//inline static void write16(const uint16_t val) __attribute__((always_inline));//not used
+	inline static void write32Both(const uint32_t val) __attribute__((always_inline));
+	static uint16_t readByteBoth(void);
 	static void readBytes( uint8_t * const buf, const int len);
 };
 
-extern ParallelFlashChip ParallelFlash;
+extern BiParFlashChip BiParFlash;
 
 
-class ParallelFlashFile
+class BiParFlashFile
 {
 public:
-	ParallelFlashFile() : address(0) {
+	BiParFlashFile() : address(0) {
 	}
 	operator bool() {
 		if (address > 0) return true;
@@ -93,7 +93,7 @@ public:
 			if (offset >= length) return 0;
 			rdlen = length - offset;
 		}
-		ParallelFlash.read(address + offset, buf, rdlen);
+		BiParFlash.read(address + offset, buf, rdlen);
 		offset += rdlen;
 		return rdlen;
 	}
@@ -102,7 +102,7 @@ public:
 			if (offset >= length) return 0;
 			wrlen = length - offset;
 		}
-		ParallelFlash.write(address + offset, buf, wrlen);
+		BiParFlash.write(address + offset, buf, wrlen);
 		offset += wrlen;
 		return wrlen;
 	}
@@ -128,7 +128,7 @@ public:
 		return address;
 	}
 protected:
-	friend class ParallelFlashChip;
+	friend class BiParFlashChip;
 	uint32_t address;  // where this file's data begins in the Flash, or zero
 	uint32_t length;   // total length of the data in the Flash chip
 	uint32_t offset; // current read/write offset in the file

@@ -1,22 +1,30 @@
-#include <ParallelFlash.h>
+#include  <BiParFlash.h>
 
-//const int FlashChipSelect = 6; // digital pin for flash chip CS pin
 
-ParallelFlashFile file;
+
+
 
 const unsigned long testIncrement = 4096;
 
 void setup() {
+  //uncomment these if using Teensy audio shield
+  //SPI.setSCK(14);  // Audio shield has SCK on pin 14
+  //SPI.setMOSI(7);  // Audio shield has MOSI on pin 7
+
+  //uncomment these if you have other SPI chips connected
+  //to keep them disabled while using only SerialFlash
+  //pinMode(4, INPUT_PULLUP);
+  //pinMode(10, INPUT_PULLUP);
 
   // wait up to 10 seconds for Arduino Serial Monitor
   unsigned long startMillis = millis();
   while (!Serial && (millis() - startMillis < 10000)) ;
   delay(100);
 
-  ParallelFlash.begin();
-  unsigned char id[3];
-  ParallelFlash.readID(id);
-  unsigned long size = ParallelFlash.capacity(id);
+  BiParFlash.begin();
+  unsigned char id[5];
+  BiParFlash.readID(id);
+  unsigned long size = BiParFlash.capacity(id);
 
   if (size > 0) {
     Serial.print("Flash Memory has ");
@@ -29,10 +37,10 @@ void setup() {
     Serial.print(seconds);
     Serial.println(" seconds.");
     Serial.println("  Yes, full chip erase is SLOW!");
-    ParallelFlash.eraseAll();
+    BiParFlash.eraseAll();
     unsigned long dotMillis = millis();
     unsigned char dotcount = 0;
-    while (ParallelFlash.ready() == false) {
+    while (BiParFlash.ready() == false) {
       if (millis() - dotMillis > 1000) {
         dotMillis = dotMillis + 1000;
         Serial.print(".");
@@ -53,15 +61,15 @@ void setup() {
 }
 
 float eraseBytesPerSecond(const unsigned char *id) {
-  if (id[0] == 0x20) return 152000.0; // Micron
-  if (id[0] == 0x01) return 500000.0; // Spansion
-  if (id[0] == 0xEF) return 419430.0; // Winbond
-  if (id[0] == 0xC2) return 279620.0; // Macronix
-  return 320000.0; // guess?
+//  if (id[0] == 0x20) return 152000.0; // Micron
+//  if (id[0] == 0x01) return 500000.0; // Spansion
+  if (id[0] == 0xEF) return 419430.0 * 2; // Winbond
+//  if (id[0] == 0xC2) return 279620.0; // Macronix
+//  return 320000.0; // guess?
+  return 0;
 }
 
 
 void loop() {
 
 }
-

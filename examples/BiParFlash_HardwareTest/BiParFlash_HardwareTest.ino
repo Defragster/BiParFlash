@@ -14,12 +14,12 @@
 //
 
 
-#include <ParallelFlash.h>
+#include <BiParFlash.h>
 
 
-//const int FlashChipSelect = 6; // digital pin for flash chip CS pin
 
-ParallelFlashFile file;
+
+BiParFlashFile file;
 
 const unsigned long testIncrement = 4096;
 
@@ -28,8 +28,8 @@ void setup() {
   while (!Serial) ;
   delay(100);
 
-  Serial.println("Raw ParallelFlash Hardware Test");
-  ParallelFlash.begin();
+  Serial.println("Raw BiParFlash Hardware Test");
+  BiParFlash.begin();
 
   if (test()) {
     Serial.println();
@@ -56,7 +56,7 @@ bool test() {
   // Read the chip identification
   Serial.println();
   Serial.println("Read Chip Identification:");
-  ParallelFlash.readID(buf);
+  BiParFlash.readID(buf);
   Serial.print("  JEDEC ID:     ");
   Serial.print(buf[0], HEX);
   Serial.print(" ");
@@ -66,12 +66,12 @@ bool test() {
   Serial.print("  Part Number: ");
   Serial.println(id2chip(buf));
   Serial.print("  Memory Size:  ");
-  chipsize = ParallelFlash.capacity(buf);
+  chipsize = BiParFlash.capacity(buf);
   Serial.print(chipsize);
   Serial.println(" bytes");
   if (chipsize == 0) return false;
   Serial.print("  Block Size:   ");
-  blocksize = ParallelFlash.blockSize();
+  blocksize = BiParFlash.blockSize();
   Serial.print(blocksize);
   Serial.println(" bytes");
 
@@ -86,8 +86,8 @@ bool test() {
   address = 0;
   count = 0;
   first = true;
-  while (address < chipsize) {
-    ParallelFlash.read(address, buf, 8);
+  while (address < chipsize ) {
+    BiParFlash.read(address, buf, 8);
     //Serial.print("  addr = ");
     //Serial.print(address, HEX);
     //Serial.print(", data = ");
@@ -129,14 +129,14 @@ bool test() {
     address = 0;
     first = true;
     while (address < chipsize) {
-      ParallelFlash.read(address, buf, 8);
+      BiParFlash.read(address, buf, 8);
       if (is_erased(buf, 8)) {
         create_signature(address, sig);
         //Serial.printf("write %08X: data: ", address);
         //printbuf(sig, 8);
-        ParallelFlash.write(address, sig, 8);
-        while (!ParallelFlash.ready()) ; // wait
-        ParallelFlash.read(address, buf, 8);
+        BiParFlash.write(address, sig, 8);
+        while (!BiParFlash.ready()) ; // wait
+        BiParFlash.read(address, buf, 8);
         if (equal_signatures(buf, sig) == false) {
           Serial.print("  error writing signature at ");
           Serial.println(address);
@@ -171,7 +171,7 @@ bool test() {
   address = 0;
   first = true;
   while (address < chipsize) {
-    ParallelFlash.read(address, buf, 8);
+    BiParFlash.read(address, buf, 8);
     create_signature(address, sig);
     if (equal_signatures(buf, sig) == false) {
       Serial.print("  error in signature at ");
@@ -207,7 +207,7 @@ bool test() {
   address = testIncrement - 8;
   first = true;
   while (address < chipsize - 8) {
-    ParallelFlash.read(address, buf, 16);
+    BiParFlash.read(address, buf, 16);
     create_signature(address, sig);
     create_signature(address + 8, sig + 8);
     if (memcmp(buf, sig, 16) != 0) {
@@ -232,7 +232,7 @@ bool test() {
   Serial.println("Checking Read-While-Write (Program Suspend)");
   address = 256;
   while (address < chipsize) { // find a blank space
-    ParallelFlash.read(address, buf, 256);
+    BiParFlash.read(address, buf, 256);
     if (is_erased(buf, 256)) break;
     address = address + 256;
   }
@@ -246,19 +246,19 @@ bool test() {
   Serial.print("  write 256 bytes at ");
   Serial.println(address);
   Serial.flush();
-  ParallelFlash.write(address, sig, 256);
+  BiParFlash.write(address, sig, 256);
   usec = micros();
-  if (ParallelFlash.ready()) {
+  if (BiParFlash.ready()) {
     Serial.println("  error, chip did not become busy after write");
     return false;
   }
-  ParallelFlash.read(0, buf2, 8); // read while busy writing
-  while (!ParallelFlash.ready()) ; // wait
+  BiParFlash.read(0, buf2, 8); // read while busy writing
+  while (!BiParFlash.ready()) ; // wait
   usec = micros() - usec;
   Serial.print("  write time was ");
   Serial.print(usec);
   Serial.println(" microseconds.");
-  ParallelFlash.read(address, buf, 256);
+  BiParFlash.read(address, buf, 256);
   if (memcmp(buf, sig, 256) != 0) {
     Serial.println("  error writing to flash");
     Serial.print("  Read this: ");
@@ -289,15 +289,15 @@ bool test() {
     memset(buf, 0, sizeof(buf));
     memset(sig, 0, sizeof(sig));
     memset(buf2, 0, sizeof(buf2));
-    ParallelFlash.eraseBlock(262144);
+    BiParFlash.eraseBlock(262144);
     usec = micros();
     delayMicroseconds(50);
-    if (ParallelFlash.ready()) {
+    if (BiParFlash.ready()) {
       Serial.println("  error, chip did not become busy after erase");
       return false;
     }
-    ParallelFlash.read(0, buf2, 8); // read while busy writing
-    while (!ParallelFlash.ready()) ; // wait
+    BiParFlash.read(0, buf2, 8); // read while busy writing
+    while (!BiParFlash.ready()) ; // wait
     usec = micros() - usec;
     Serial.print("  erase time was ");
     Serial.print(usec);
@@ -307,7 +307,7 @@ bool test() {
     address = 0;
     first = true;
     while (address < chipsize) {
-      ParallelFlash.read(address, buf, 8);
+      BiParFlash.read(address, buf, 8);
       if (address >= 262144 && address < 262144 + blocksize) {
         if (is_erased(buf, 8) == false) {
           Serial.print("  error in erasing at ");
@@ -439,4 +439,3 @@ void printbuf(const void *buf, uint32_t len)
   } while (--len > 0);
   Serial.println();
 }
-
