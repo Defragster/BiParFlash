@@ -1,9 +1,10 @@
-# Not yet Functional Work In Progress.
+# Not yet fully Functional Work In Progress.
 Using two Winbond 16MB flash chips, each in 4 bit QPI mode
-Running in parallel for 8 bit access each command.
+Running in parallel for 8 bit access each command (except on odd byte boundaries or odd write lengths)
 
 
 # BiParallelFlash :: Using this pin configuration to match the board Frank Made
+Using the PCB pinout with split ports for now : see code
 Compatible to SerialFlash by Paul Stoffregen
 
 Winbond SPI Flash only.
