@@ -349,8 +349,12 @@ uint16_t BiParFlashChip::order(uint32_t addr, uint32_t len)
 	// Serial.print("order-");
 	if (0 != len) {
 		if ( 1 & addr ) {	// ODD addr
+			RetVal |= PRE_ODD; // read first ODD byte
+			if ( !(1 & len) ) RetVal |= POST_EVEN;	// EVEN len requires read EVEN last byte
 		}
 		else {	// EVEN addr
+			if ( 1 == len ) RetVal |= PRE_EVEN;	// One byte EVEN read
+			else if ( (1 & len) ) RetVal |= POST_EVEN;	// ODD requires read EVEN last byte
 		}
 	}
 	// Serial.println( RetVal, HEX);
@@ -454,6 +458,7 @@ void BiParFlashChip::write(uint32_t addr, const void *buf, uint32_t len)
 		DATA_INPUT;		
 		return;
 	}
+	//Serial.printf("WR: addr %08X, len %d, order %x\n", addr, len, orderFW);
 	do {
 		if (busy) wait();
 		writeByteBoth(0x06); // write enable
