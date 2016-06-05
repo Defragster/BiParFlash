@@ -55,12 +55,18 @@ const int flash1_sio3 =   5; //PTD7 FlashPin 7 Flash #1
 
 #define DATA_INPUT 		{GPIO_D->PDDR &=~0xff;}					
 #define DATA_OUTPUT 	{GPIO_D->PDDR |= 0xff;}
+#define DATA_OUTPUT_F0 	{GPIO_D->PDDR |= 0xf0;}
+#define DATA_OUTPUT_F1 	{GPIO_D->PDDR |= 0x0f;}
 #define DATA_OUT		GPIO_D->PDOR
 #define DATA_IN			GPIO_D->PDIR
 #define CLK0			{GPIO_B->PCOR = MASK_SCK;} 				// CLK both chips = 0 
 #define CLK1			{GPIO_B->PSOR = MASK_SCK;} 				// CLK both chips = 1 
 #define CSASSERT() 		{GPIO_C->PCOR = MASK_CS;GPIO_B->PCOR = MASK1_CS; } //CS both chips = 0
 #define CSRELEASE() 	{GPIO_C->PSOR = MASK_CS;GPIO_B->PSOR = MASK1_CS  | MASK_SCK;} //UN-CS Both Chips (=1),  SCK=1
+#define CSASSERT_F0() 	{GPIO_C->PCOR = MASK_CS; } //CS chip FLASH 0 = 0
+#define CSRELEASE_F0() 	{GPIO_C->PSOR = MASK_CS;GPIO_B->PSOR = MASK_SCK;} //UN-CS Chip FLASH 0 (=1),  SCK=1
+#define CSASSERT_F1() 	{GPIO_B->PCOR = MASK1_CS; } //CS chip FLASH 1 = 0
+#define CSRELEASE_F1() 	{GPIO_B->PSOR = MASK1_CS  | MASK_SCK;} //UN-CS Chip FLASH 1 (=1),  SCK=1
 
 #define CSASSERTSPI()  	{ GPIO_C->PCOR = MASK_CS; }				// Flash #0
 #define CSRELEASESPI()	{ GPIO_C->PSOR = MASK_CS; }				// Flash #0
@@ -129,6 +135,41 @@ void BiParFlashChip::writeByteBoth(const uint8_t val) {
   flash_Wait2;
 }
 
+void BiParFlashChip::writeByteF0(const uint8_t val) {
+    // two writes one for each nibble of byte to FLASH 0 chip
+    // NOTE :: Only writes byte to address set on F0 !!!!!
+  DATA_OUTPUT_F0;
+  CSASSERT_F0();
+  CLK0;
+  
+  flash_Wait2;
+  DATA_OUT = (val & 0xf0);
+  CLK1;
+  flash_Wait2;  
+  CLK0;
+  flash_Wait2;
+  DATA_OUT = ((val << 4) & 0xf0);
+  CLK1;
+  flash_Wait2;
+}
+
+void BiParFlashChip::writeByteF1(const uint8_t val) {
+    // two writes one for each nibble of byte to FLASH 1 chip
+    // NOTE :: Only writes byte to address set on F1 !!!!!
+  DATA_OUTPUT_F1;
+  CSASSERT_F1();
+  CLK0;
+  
+  flash_Wait2;
+  DATA_OUT = ((val >> 4) & 0x0f);
+  CLK1;
+  flash_Wait2;  
+  CLK0;
+  flash_Wait2;
+  DATA_OUT = (val & 0x0f);
+  CLK1;
+  flash_Wait2;
+}
 
 void BiParFlashChip::write32Both(const uint32_t val) {
 //	uint32_t buf = __REV(val);
@@ -137,6 +178,24 @@ void BiParFlashChip::write32Both(const uint32_t val) {
 	writeByteBoth((val>>16) & 0xff);
 	writeByteBoth((val>> 8) & 0xff);
 	writeByteBoth((val>> 0) & 0xff);
+}
+
+void BiParFlashChip::write32F0(const uint32_t val) {
+//	uint32_t buf = __REV(val);
+//	writeBytes((uint8_t*) &buf, 4);
+	writeByteF0((val>>24) & 0xff);
+	writeByteF0((val>>16) & 0xff);
+	writeByteF0((val>> 8) & 0xff);
+	writeByteF0((val>> 0) & 0xff);
+}
+
+void BiParFlashChip::write32F1(const uint32_t val) {
+//	uint32_t buf = __REV(val);
+//	writeBytes((uint8_t*) &buf, 4);
+	writeByteF1((val>>24) & 0xff);
+	writeByteF1((val>>16) & 0xff);
+	writeByteF1((val>> 8) & 0xff);
+	writeByteF1((val>> 0) & 0xff);
 }
 
 uint16_t BiParFlashChip::readByteBoth(void) {
@@ -280,12 +339,33 @@ void BiParFlashChip::wait(void)
 	//Serial.println();
 }
 
+// Special case first and last one chip read or write
+#define PRE_EVEN	0x02
+#define PRE_ODD		0x01
+#define POST_EVEN	0x20
+uint16_t BiParFlashChip::order(uint32_t addr, uint32_t len)
+{
+	uint32_t RetVal=0;
+	// Serial.print("order-");
+	if (0 != len) {
+		if ( 1 & addr ) {	// ODD addr
+		}
+		else {	// EVEN addr
+		}
+	}
+	// Serial.println( RetVal, HEX);
+	return (RetVal);
+}
+
 void BiParFlashChip::read(uint32_t addr, void *buf, uint32_t len)
 {
 	uint8_t *p = (uint8_t *)buf;
 	uint8_t b, f;
 	uint16_t status;
+	uint16_t orderFR;	// Flash read order
 
+	orderFR = order( addr, len);
+	if ( orderFR ) Serial.printf("WR: addr %08X, len %d, order %2x\n", addr, len, order); // debug
 	addr /=2;
 	
 	f = flags;
@@ -344,26 +424,48 @@ void BiParFlashChip::write(uint32_t addr, const void *buf, uint32_t len)
 {
 	uint8_t *p = (uint8_t *)buf;
 	uint32_t max, pagelen;
+	uint16_t orderFW;	// Flash write order
 
-	 //Serial.printf("WR: addr %08X, len %d\n", addr, len);
+	orderFW = order( addr, len);
+	if ( orderFW ) Serial.printf( "order %2x\n",orderFW);	// debug
+	if ( PRE_ODD & orderFW ) {
+		if (busy) wait();
+		writeByteF1(0x06); // write enable
+		CSRELEASE_F1();
+		write32F1((0x02 << 24) | (addr / 2) );
+		writeByteF1( *p++ );
+		CSRELEASE_F1();
+		len--;
+		addr++;
+		busy = 1;
+	}
+	else if ( PRE_EVEN & orderFW ) {
+		if (busy) wait();
+		writeByteF0(0x06); // write enable
+		CSRELEASE_F0();
+		write32F0((0x02 << 24) | (addr / 2) );
+		writeByteF0( *p++ );
+		CSRELEASE_F0();
+		len--;
+		addr++;
+		busy = 1;
+	}
+	if ( 0 == len) {
+		DATA_INPUT;		
+		return;
+	}
 	do {
 		if (busy) wait();
 		writeByteBoth(0x06); // write enable
 		CSRELEASE();
 		max = 256 - (addr & 0xFF);
-		pagelen = (len <= max) ? len : max;
+		pagelen = (len <= max) ? (0xFFFE &len) : max;
 		 //Serial.printf("WR: addr %08X, pagelen %d\n", addr, pagelen);
 
 		//writeBytes(p++, pagelen );
 
 		{ //WriteBytes
-
-			uint8_t byteOne;
 			//Serial.printf("wr addr %d\n",addr);
-			if (addr & 0x01) {			
-				read(addr, &byteOne, 1);
-				Serial.printf("rd addr %d=%d\n",addr, byteOne);
-			}
 /*
 			if (flags & FLAG_32BIT_ADDR) {
 				writeByteBoth(0x02); // program page command
@@ -375,14 +477,6 @@ void BiParFlashChip::write(uint32_t addr, const void *buf, uint32_t len)
 			write32Both((0x02 << 24) | (addr / 2) );
 			//DATA_OUTPUT;
 			//CSASSERT();
-
-			if (addr & 0x01) {
-				CLK0;
-				flash_Wait1;
-				DATA_OUT = byteOne;
-				CLK1;
-				flash_Wait2;
-			}
 
 			addr += pagelen;
 			len -= pagelen;
@@ -401,7 +495,18 @@ void BiParFlashChip::write(uint32_t addr, const void *buf, uint32_t len)
 		}
 
 		busy = 1;
-	} while (len > 0);
+	} while (len > 1);
+	if ( (len==1) && (POST_EVEN & orderFW) ) {
+		if (busy) wait();
+		writeByteF0(0x06); // write enable
+		CSRELEASE_F0();
+		write32F0((0x02 << 24) | (addr / 2) );
+		writeByteF0( *p++ );
+		CSRELEASE_F0();
+		len--;
+		addr++;
+		busy = 1;
+	}
 	DATA_INPUT;		
 }
 

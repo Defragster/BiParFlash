@@ -42,6 +42,7 @@ public:
 	static void wakeup();
 	static void readID(uint8_t *buf);
 	//static void readSerialNumber(uint8_t *buf);
+	static uint16_t order(uint32_t addr, uint32_t len);
 	static void read(uint32_t addr, void *buf, uint32_t len);
 	static bool ready();
 	static void wait();
@@ -69,9 +70,13 @@ private:
 	static void enterQPI();
 	static void exitQPI();
 	static void writeByteBoth(const uint8_t val);
+	static void writeByteF0(const uint8_t val);
+	static void writeByteF1(const uint8_t val);
 	//static void writeBytes(const uint8_t * buf, const int len);
 	//inline static void write16(const uint16_t val) __attribute__((always_inline));//not used
 	inline static void write32Both(const uint32_t val) __attribute__((always_inline));
+	inline static void write32F0(const uint32_t val) __attribute__((always_inline));
+	inline static void write32F1(const uint32_t val) __attribute__((always_inline));
 	static uint16_t readByteBoth(void);
 	static void readBytes( uint8_t * const buf, const int len);
 };
